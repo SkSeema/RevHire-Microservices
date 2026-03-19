@@ -1,0 +1,8 @@
+.git
+.idea
+**/*.log
+*.log
+*.out
+*.err
+*.pid
+microservices-backend.zip

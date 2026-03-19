@@ -1,0 +1,62 @@
+server:
+  port: 9090
+
+spring:
+  application:
+    name: api-gateway
+  cloud:
+    gateway:
+      default-filters:
+        - DedupeResponseHeader=Access-Control-Allow-Origin Access-Control-Allow-Credentials Access-Control-Allow-Headers Access-Control-Allow-Methods, RETAIN_FIRST
+      globalcors:
+        cors-configurations:
+          '[/**]':
+            allowedOriginPatterns: "*"
+            allowedMethods:
+              - GET
+              - POST
+              - PUT
+              - DELETE
+              - OPTIONS
+            allowedHeaders: "*"
+            allowCredentials: true
+      discovery:
+        locator:
+          enabled: true
+          lower-case-service-id: true
+      routes:
+        - id: resume-service-legacy-profile
+          uri: lb://resume-service
+          predicates:
+            - Path=/api/seeker/profile/resume, /api/seeker/profile/resume-text, /api/seeker/profile/*/resume/download, /api/seeker/profile/*/skills
+        - id: user-service
+          uri: lb://user-service
+          predicates:
+            - Path=/api/users/**, /api/auth/**, /api/employer-profiles/**, /api/job-seeker-profiles/**, /api/seeker/profile/**, /api/stats/users/**
+        - id: job-service
+          uri: lb://job-service
+          predicates:
+            - Path=/api/jobs/**, /api/companies/**, /api/company/register/**, /api/skills/**, /api/saved-jobs/**, /api/seeker/saved-jobs/**, /api/search/**, /api/dashboard/**, /api/stats/jobs/**, /api/job-stats/**
+        - id: resume-service
+          uri: lb://resume-service
+          predicates:
+            - Path=/api/resumes/**, /api/saved-resumes/**, /api/employer/saved-resumes/**
+        - id: application-service
+          uri: lb://application-service
+          predicates:
+            - Path=/api/applications/**, /api/stats/applications/**
+        - id: notification-service
+          uri: lb://notification-service
+          predicates:
+            - Path=/api/notifications/**, /api/audit-logs/**, /api/audit/**
+
+eureka:
+  client:
+    serviceUrl:
+      defaultZone: ${EUREKA_CLIENT_SERVICEURL_DEFAULTZONE:http://localhost:8761/eureka/}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: "*"
