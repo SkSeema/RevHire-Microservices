@@ -1,0 +1,187 @@
+services:
+  discovery-server:
+    build:
+      context: .
+      dockerfile: service.Dockerfile
+      args:
+        MODULE: discovery-server
+        PORT: 8761
+    image: revhire/discovery-server:latest
+    ports:
+      - "8761:8761"
+    networks:
+      - revhire-network
+
+  api-gateway:
+    build:
+      context: .
+      dockerfile: service.Dockerfile
+      args:
+        MODULE: api-gateway
+        PORT: 9090
+    image: revhire/api-gateway:latest
+    ports:
+      - "9090:9090"
+    environment:
+      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://discovery-server:8761/eureka/
+    depends_on:
+      - discovery-server
+    networks:
+      - revhire-network
+
+  frontend:
+    build:
+      context: .
+      dockerfile: frontend.Dockerfile
+      args:
+        API_URL: http://localhost:9090/api
+    image: revhire/frontend:latest
+    ports:
+      - "4200:80"
+    depends_on:
+      - api-gateway
+    networks:
+      - revhire-network
+
+  user-service:
+    build:
+      context: .
+      dockerfile: service.Dockerfile
+      args:
+        MODULE: user-service
+        PORT: 8081
+    image: revhire/user-service:latest
+    ports:
+      - "8081:8081"
+    environment:
+      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://discovery-server:8761/eureka/
+      - SPRING_DATASOURCE_URL=jdbc:mysql://mysql-db:3306/revhire_user_db?createDatabaseIfNotExist=true&allowPublicKeyRetrieval=true
+      - SPRING_DATASOURCE_USERNAME=root
+      - SPRING_DATASOURCE_PASSWORD=password
+    depends_on:
+      discovery-server:
+        condition: service_started
+      mysql-db:
+        condition: service_healthy
+    networks:
+      - revhire-network
+
+  job-service:
+    build:
+      context: .
+      dockerfile: service.Dockerfile
+      args:
+        MODULE: job-service
+        PORT: 8082
+    image: revhire/job-service:latest
+    ports:
+      - "8082:8082"
+    environment:
+      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://discovery-server:8761/eureka/
+      - SPRING_DATASOURCE_URL=jdbc:mysql://mysql-db:3306/revhire_job_db?createDatabaseIfNotExist=true&allowPublicKeyRetrieval=true
+      - SPRING_DATASOURCE_USERNAME=root
+      - SPRING_DATASOURCE_PASSWORD=password
+    depends_on:
+      discovery-server:
+        condition: service_started
+      mysql-db:
+        condition: service_healthy
+    networks:
+      - revhire-network
+
+  resume-service:
+    build:
+      context: .
+      dockerfile: service.Dockerfile
+      args:
+        MODULE: resume-service
+        PORT: 8083
+    image: revhire/resume-service:latest
+    ports:
+      - "8083:8083"
+    environment:
+      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://discovery-server:8761/eureka/
+      - SPRING_DATASOURCE_URL=jdbc:mysql://mysql-db:3306/revhire_resume_db?createDatabaseIfNotExist=true&allowPublicKeyRetrieval=true
+      - SPRING_DATASOURCE_USERNAME=root
+      - SPRING_DATASOURCE_PASSWORD=password
+    volumes:
+      - ./uploads/resumes:/app/uploads/resumes
+    depends_on:
+      discovery-server:
+        condition: service_started
+      mysql-db:
+        condition: service_healthy
+    networks:
+      - revhire-network
+
+  application-service:
+    build:
+      context: .
+      dockerfile: service.Dockerfile
+      args:
+        MODULE: application-service
+        PORT: 8084
+    image: revhire/application-service:latest
+    ports:
+      - "8084:8084"
+    environment:
+      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://discovery-server:8761/eureka/
+      - SPRING_DATASOURCE_URL=jdbc:mysql://mysql-db:3306/revhire_application_db?createDatabaseIfNotExist=true&allowPublicKeyRetrieval=true
+      - SPRING_DATASOURCE_USERNAME=root
+      - SPRING_DATASOURCE_PASSWORD=password
+    depends_on:
+      discovery-server:
+        condition: service_started
+      mysql-db:
+        condition: service_healthy
+    networks:
+      - revhire-network
+
+  notification-service:
+    build:
+      context: .
+      dockerfile: service.Dockerfile
+      args:
+        MODULE: notification-service
+        PORT: 8085
+    image: revhire/notification-service:latest
+    ports:
+      - "8085:8085"
+    environment:
+      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://discovery-server:8761/eureka/
+      - SPRING_DATASOURCE_URL=jdbc:mysql://mysql-db:3306/revhire_notification_db?createDatabaseIfNotExist=true&allowPublicKeyRetrieval=true
+      - SPRING_DATASOURCE_USERNAME=root
+      - SPRING_DATASOURCE_PASSWORD=password
+      - SPRING_MAIL_USERNAME=revhire.careers@gmail.com
+      - SPRING_MAIL_PASSWORD=tjapamgeokxiylgw
+      - SPRING_MAIL_HOST=smtp.gmail.com
+      - SPRING_MAIL_PORT=587
+      - SPRING_MAIL_PROPERTIES_MAIL_SMTP_AUTH=true
+      - SPRING_MAIL_PROPERTIES_MAIL_SMTP_STARTTLS_ENABLE=true
+    depends_on:
+      discovery-server:
+        condition: service_started
+      mysql-db:
+        condition: service_healthy
+    networks:
+      - revhire-network
+
+  mysql-db:
+    image: mysql:8.0
+    ports:
+      - "3307:3306"
+    environment:
+      - MYSQL_ROOT_PASSWORD=password
+    volumes:
+      - ./mysql-init:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-ppassword"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks:
+      - revhire-network
+
+networks:
+  revhire-network:
+    driver: bridge
